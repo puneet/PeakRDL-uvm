@@ -62,11 +62,8 @@ class UVMExporter:
         # value = max accesswidth/memwidth used in node's descendants
         self.bus_width_db = {}
 
-        # Dictionary of root-level type definitions
-        # key = definition type name
-        # value = representative object
-        #   components, this is the original_def (which can be None in some cases)
-        self.namespace_db = {}
+        # Set of root-level type definitions
+        self.namespace_db = set()
 
         self.reuse_class_definitions = True
 
@@ -184,14 +181,18 @@ class UVMExporter:
                 # Unable to determine a reusable type name. Fall back to hierarchical path
                 class_name = node.get_rel_path(
                     self.top.parent,
-                    hier_separator="__", array_suffix="", empty_array_suffix=""
+                    hier_separator="__",
+                    array_suffix="",
+                    empty_array_suffix="",
                 )
                 # Add prefix to prevent collision when mixing namespace methods
                 class_name = "xtern__" + class_name
         else:
             class_name = node.get_rel_path(
                 self.top.parent,
-                hier_separator="__", array_suffix="", empty_array_suffix=""
+                hier_separator="__",
+                array_suffix="",
+                empty_array_suffix="",
             )
 
         return class_name
@@ -213,7 +214,7 @@ class UVMExporter:
         else:
             friendly_name = node.get_rel_path(self.top.parent)
 
-        return type(node.inst).__name__ + " - " + friendly_name
+        return node.component_type_name + " - " + friendly_name
 
 
     def _get_inst_name(self, node: Node) -> str:
@@ -235,19 +236,12 @@ class UVMExporter:
         type_name = self._get_class_name(node)
 
         if type_name in self.namespace_db:
-            obj = self.namespace_db[type_name]
-
-            # Sanity-check for collisions
-            if (obj is None) or (obj is not node.original_def):
-                raise RuntimeError("Namespace collision! Type-name generation is not robust enough to create unique names!")
-
-            # This object likely represents the existing class definition
             # Ok to omit the re-definition
             return False
 
         # Need to emit a new definition
         # First, register it in the namespace
-        self.namespace_db[type_name] = node.original_def
+        self.namespace_db.add(type_name)
         return True
 
 
